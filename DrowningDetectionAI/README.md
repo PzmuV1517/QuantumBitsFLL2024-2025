@@ -41,8 +41,6 @@ To run the program, follow these steps:
 5. To quit the program, press the "q" key on your keyboard.
 
 
-[Here's](https://youtu.be/99GdhIozAQ8) a demonstration video of our drowning detection system in action
-
 If you are interested in YOLO object detection, read their website:
 
 https://pjreddie.com/darknet/yolo/
