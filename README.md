@@ -55,6 +55,11 @@ To set up the Drowning Detection project, follow these steps:
 ```bash
   python -m venv env
 ```
-2. **Install Requirements:**
+2. **Install wheel:**
+```bash
+   pip install --upgrade setuptools wheel
+```
+3. **Install Requirements:**
 ```bash
    pip install -r requirements.txt
+```
