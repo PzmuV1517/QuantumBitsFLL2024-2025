@@ -1,4 +1,5 @@
 albumentations
+djitellopy
 certifi
 charset-normalizer
 cycler
@@ -16,6 +17,7 @@ opencv-python
 opencv-python-headless
 packaging
 Pillow
+pygame
 playsound
 progressbar
 pyparsing
