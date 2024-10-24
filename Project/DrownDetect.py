@@ -1,20 +1,19 @@
-import cvlib as cv
-from cvlib.object_detection import draw_bbox
 import cv2
-import time
-import numpy as np
-import joblib
 import torch
+import time
+import joblib
+import numpy as np
+from PIL import Image
+from torchvision import transforms
 import torch.nn as nn
 import torch.nn.functional as F
-import albumentations
-from torch.utils.data import Dataset, DataLoader
-from PIL import Image
+from yolov5 import YOLOv5
 
 # Load label binarizer and model
 print('Loading model and label binarizer...')
 lb = joblib.load('lb.pkl')
 
+# Define your custom CNN model for drowning detection
 class CustomCNN(nn.Module):
     def __init__(self):
         super(CustomCNN, self).__init__()
@@ -25,6 +24,7 @@ class CustomCNN(nn.Module):
         self.fc1 = nn.Linear(128, 256)
         self.fc2 = nn.Linear(256, len(lb.classes_))
         self.pool = nn.MaxPool2d(2, 2)
+    
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
@@ -36,26 +36,41 @@ class CustomCNN(nn.Module):
         x = self.fc2(x)
         return x
 
+# Load the custom drowning detection model
 print('Model Loaded...')
 model = CustomCNN()
-model.load_state_dict(torch.load('model.pth', map_location='cpu'))
+model.load_state_dict(torch.load('model.pth', map_location='cpu'))  # Load to CPU (modify if using GPU)
 model.eval()
 print('Loaded model state_dict...')
 
-aug = albumentations.Compose([
-    albumentations.Resize(224, 224),
+# Use GPU if available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = model.to(device)
+
+# Preprocessing for the custom model
+preprocess = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor()
 ])
+
+# Load YOLOv5 model (from local weights to avoid external dependencies)
+yolo = YOLOv5("/home/kali/QuantumBitsFLL2024-2025/Project/yolov5n.pt", device=device)  # Specify the correct path to your model file
 
 def detectDrowning():
     isDrowning = False
-    fram = 0
-    
-    # Use camera feed instead of video file
+    frame_count = 0
+    skip_frames = 2  # Skip every 2 frames for better FPS
+    frame_width, frame_height = 640, 480  # Resize frames for faster processing
+
+    # Access the camera feed
     cap = cv2.VideoCapture(0)  # Use camera index 0 (default camera)
     
     if not cap.isOpened():
         print('Error: Unable to access the camera.')
         return
+
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
 
     while cap.isOpened():
         status, frame = cap.read()
@@ -64,56 +79,66 @@ def detectDrowning():
             print('Error: Unable to capture video frame.')
             break
 
-        # Apply object detection
-        bbox, label, conf = cv.detect_common_objects(frame)
+        # Skip frames to improve FPS
+        if frame_count % skip_frames == 0:
+            # Resize frame to reduce computation
+            frame_resized = cv2.resize(frame, (frame_width, frame_height))
 
-        # If only one person is detected, use model-based detection
-        if len(bbox) == 1:
-            bbox0 = bbox[0]
-            centre = [(bbox0[0] + bbox0[2]) / 2, (bbox0[1] + bbox0[3]) / 2]
+            # Perform YOLOv5 object detection
+            results = yolo.predict(frame_resized)
 
-            with torch.no_grad():
-                pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                pil_image = aug(image=np.array(pil_image))['image']
-                
-                pil_image = np.transpose(pil_image, (2, 0, 1)).astype(np.float32)
-                pil_image = torch.tensor(pil_image, dtype=torch.float).cpu()
-                pil_image = pil_image.unsqueeze(0)
-                
-                outputs = model(pil_image)
-                _, preds = torch.max(outputs.data, 1)
+            bbox = []
+            labels = []
+            confs = []
 
-            print("Swimming status:", lb.classes_[preds])
-            if lb.classes_[preds] == 'drowning':
-                isDrowning = True
-            else:
-                isDrowning = False
+            for pred in results.pred[0]:  # Iterate through the predicted results
+                if yolo.names[int(pred[-1])] == 'person':  # Detect only people
+                    bbox.append([int(pred[0]), int(pred[1]), int(pred[2]), int(pred[3])])
+                    labels.append('person')
+                    confs.append(float(pred[4]))
 
-            # Draw bounding box and label on the frame
-            out = draw_bbox(frame, bbox, label, conf, isDrowning)
+            # If only one person is detected, use model-based detection
+            if len(bbox) == 1:
+                bbox0 = bbox[0]
 
-        # If more than one person is detected, use logic-based detection
-        elif len(bbox) > 1:
-            centres = [[(bbox[i][0] + bbox[i][2]) / 2, (bbox[i][1] + bbox[i][3]) / 2] for i in range(len(bbox))]
+                with torch.no_grad():
+                    # Preprocess image
+                    pil_image = Image.fromarray(cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB))
+                    pil_image = preprocess(pil_image).unsqueeze(0).to(device)  # Send to GPU if available
+                    
+                    outputs = model(pil_image)
+                    _, preds = torch.max(outputs.data, 1)
 
-            distances = [
-                np.sqrt((centres[i][0] - centres[j][0]) ** 2 + (centres[i][1] - centres[j][1]) ** 2)
-                for i in range(len(centres))
-                for j in range(i + 1, len(centres))
-            ]
+                print("Swimming status:", lb.classes_[preds])
+                isDrowning = lb.classes_[preds] == 'drowning'
 
-            if len(distances) > 0 and min(distances) < 50:
-                isDrowning = True
-            else:
-                isDrowning = False
+                # Draw bounding box and label on the frame
+                for box in bbox:
+                    cv2.rectangle(frame_resized, (box[0], box[1]), (box[2], box[3]), (0, 255, 0) if not isDrowning else (0, 0, 255), 2)
+                    label = "Drowning" if isDrowning else "Safe"
+                    cv2.putText(frame_resized, label, (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0) if not isDrowning else (0, 0, 255), 2)
 
-            out = draw_bbox(frame, bbox, label, conf, isDrowning)
+            # If more than one person is detected, use logic-based detection
+            elif len(bbox) > 1:
+                centres = [[(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] for box in bbox]
 
-        else:
-            out = frame
+                distances = [
+                    np.sqrt((centres[i][0] - centres[j][0]) ** 2 + (centres[i][1] - centres[j][1]) ** 2)
+                    for i in range(len(centres))
+                    for j in range(i + 1, len(centres))
+                ]
 
-        # Display the output frame
-        cv2.imshow("Real-time Drowning Detection", out)
+                isDrowning = len(distances) > 0 and min(distances) < 50
+
+                for box in bbox:
+                    cv2.rectangle(frame_resized, (box[0], box[1]), (box[2], box[3]), (0, 255, 0) if not isDrowning else (0, 0, 255), 2)
+                    label = "Drowning" if isDrowning else "Safe"
+                    cv2.putText(frame_resized, label, (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0) if not isDrowning else (0, 0, 255), 2)
+
+            # Display the output frame
+            cv2.imshow("Real-time Drowning Detection", frame_resized)
+
+        frame_count += 1
 
         # Press 'q' to quit
         if cv2.waitKey(1) & 0xFF == ord('q'):

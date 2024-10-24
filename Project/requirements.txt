@@ -6,6 +6,12 @@ cycler
 fonttools
 future
 idna
+mlx-lm
+huggingface-hub==0.24.7
+torch
+torchvision
+torchaudio
+yolov5
 imageio
 iso8601
 joblib
