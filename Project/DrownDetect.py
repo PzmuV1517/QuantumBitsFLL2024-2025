@@ -1,3 +1,4 @@
+import os
 import cv2
 import torch
 import time
@@ -8,6 +9,8 @@ from torchvision import transforms
 import torch.nn as nn
 import torch.nn.functional as F
 from yolov5 import YOLOv5
+
+os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 # Load label binarizer and model
 print('Loading model and label binarizer...')
@@ -54,7 +57,13 @@ preprocess = transforms.Compose([
 ])
 
 # Load YOLOv5 model (from local weights to avoid external dependencies)
-yolo = YOLOv5("/home/kali/QuantumBitsFLL2024-2025/Project/yolov5n.pt", device=device)  # Specify the correct path to your model file
+yolo = YOLOv5("yolov5n.pt", device=device)  # Specify the correct path to your model file
+
+# Ensure that yolo.names is set after loading
+if hasattr(yolo.model, 'names'):
+    yolo.names = yolo.model.names
+else:
+    yolo.names = {0: 'person'}  # assuming 'person' is the only class you need
 
 def detectDrowning():
     isDrowning = False
