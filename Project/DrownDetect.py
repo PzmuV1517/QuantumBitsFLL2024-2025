@@ -46,6 +46,16 @@ aug = albumentations.Compose([
     albumentations.Resize(224, 224),
 ])
 
+# Define colors for bounding boxes for different individuals
+colors = [
+    (255, 0, 0),  # Blue
+    (0, 255, 0),  # Green
+    (0, 0, 255),  # Red (reserved for drowning)
+    (255, 255, 0), # Cyan
+    (255, 165, 0), # Orange
+    (128, 0, 128), # Purple
+]
+
 def detectDrowning():
     isDrowning = False
     fram = 0
@@ -67,53 +77,43 @@ def detectDrowning():
         # Apply object detection
         bbox, label, conf = cv.detect_common_objects(frame)
 
-        # If only one person is detected, use model-based detection
-        if len(bbox) == 1:
-            bbox0 = bbox[0]
-            centre = [(bbox0[0] + bbox0[2]) / 2, (bbox0[1] + bbox0[3]) / 2]
+        # If people are detected
+        if len(bbox) > 0:
+            for i, box in enumerate(bbox):
+                # Get color for the bounding box, reserving red for drowning
+                box_color = colors[i % len(colors)] if lb.classes_[0] != 'drowning' else (0, 0, 255)
 
-            with torch.no_grad():
-                pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                pil_image = aug(image=np.array(pil_image))['image']
+                # Convert the frame for model input
+                with torch.no_grad():
+                    pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    pil_image = aug(image=np.array(pil_image))['image']
+                    
+                    pil_image = np.transpose(pil_image, (2, 0, 1)).astype(np.float32)
+                    pil_image = torch.tensor(pil_image, dtype=torch.float).cpu()
+                    pil_image = pil_image.unsqueeze(0)
+                    
+                    outputs = model(pil_image)
+                    _, preds = torch.max(outputs.data, 1)
                 
-                pil_image = np.transpose(pil_image, (2, 0, 1)).astype(np.float32)
-                pil_image = torch.tensor(pil_image, dtype=torch.float).cpu()
-                pil_image = pil_image.unsqueeze(0)
+                # Get the prediction label
+                pred_label = lb.classes_[preds]
+                print(f"Detection {i+1} - Label: {pred_label}, Confidence: {conf[i]:.2f}, Box: {box}")
                 
-                outputs = model(pil_image)
-                _, preds = torch.max(outputs.data, 1)
+                # Set drowning flag
+                isDrowning = (pred_label == 'drowning')
+                box_color = (0, 0, 255) if isDrowning else colors[i % len(colors)]
 
-            print("Swimming status:", lb.classes_[preds])
-            if lb.classes_[preds] == 'drowning':
-                isDrowning = True
-            else:
-                isDrowning = False
-
-            # Draw bounding box and label on the frame
-            out = draw_bbox(frame, bbox, label, conf, isDrowning)
-
-        # If more than one person is detected, use logic-based detection
-        elif len(bbox) > 1:
-            centres = [[(bbox[i][0] + bbox[i][2]) / 2, (bbox[i][1] + bbox[i][3]) / 2] for i in range(len(bbox))]
-
-            distances = [
-                np.sqrt((centres[i][0] - centres[j][0]) ** 2 + (centres[i][1] - centres[j][1]) ** 2)
-                for i in range(len(centres))
-                for j in range(i + 1, len(centres))
-            ]
-
-            if len(distances) > 0 and min(distances) < 50:
-                isDrowning = True
-            else:
-                isDrowning = False
-
-            out = draw_bbox(frame, bbox, label, conf, isDrowning)
+                # Draw bounding box and label
+                x1, y1, x2, y2 = box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
+                label_text = f"ID:{i+1} {pred_label} ({conf[i]*100:.1f}%)"
+                cv2.putText(frame, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 2)
 
         else:
-            out = frame
+            print("No persons detected in this frame.")
 
         # Display the output frame
-        cv2.imshow("Real-time Drowning Detection", out)
+        cv2.imshow("Real-time Drowning Detection", frame)
 
         # Press 'q' to quit
         if cv2.waitKey(1) & 0xFF == ord('q'):
