@@ -1,14 +1,12 @@
 import cvlib as cv
 from cvlib.object_detection import draw_bbox
 import cv2
-import time
 import numpy as np
 import joblib
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import albumentations
-from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 
 # Load label binarizer and model
@@ -42,11 +40,12 @@ model.load_state_dict(torch.load('model.pth', map_location='cpu'))
 model.eval()
 print('Loaded model state_dict...')
 
+# Image augmentation (resize to match model input size)
 aug = albumentations.Compose([
-    albumentations.Resize(224, 224),
+    albumentations.Resize(128, 128),  # Smaller size for faster CPU processing
 ])
 
-# Define colors for bounding boxes for different individuals
+# Colors for bounding boxes
 colors = [
     (255, 0, 0),  # Blue
     (0, 255, 0),  # Green
@@ -57,71 +56,72 @@ colors = [
 ]
 
 def detectDrowning():
-    isDrowning = False
-    fram = 0
-    
-    # Use camera feed instead of video file
-    cap = cv2.VideoCapture(0)  # Use camera index 0 (default camera)
-    
+    # Video capture setup
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print('Error: Unable to access the camera.')
         return
 
-    while cap.isOpened():
-        status, frame = cap.read()
+    # Initialize frame skip and confidence threshold
+    frame_skip = 3  # Process every 3rd frame
+    confidence_threshold = 0.6  # Ignore detections below this confidence level
+    frame_count = 0
+    
+    with torch.no_grad():  # Disable gradients for faster performance
+        while cap.isOpened():
+            status, frame = cap.read()
+            if not status:
+                print('Error: Unable to capture video frame.')
+                break
 
-        if not status:
-            print('Error: Unable to capture video frame.')
-            break
+            frame_count += 1
+            if frame_count % frame_skip != 0:
+                continue  # Skip frame
 
-        # Apply object detection
-        bbox, label, conf = cv.detect_common_objects(frame)
+            # Downscale frame early for faster detection
+            small_frame = cv2.resize(frame, (640, 480))
 
-        # If people are detected
-        if len(bbox) > 0:
+            # Detect common objects in frame
+            bbox, label, conf = cv.detect_common_objects(small_frame, confidence=confidence_threshold)
+
+            # Process detected people
             for i, box in enumerate(bbox):
-                # Get color for the bounding box, reserving red for drowning
-                box_color = colors[i % len(colors)] if lb.classes_[0] != 'drowning' else (0, 0, 255)
+                if label[i] != 'person' or conf[i] < confidence_threshold:
+                    continue
 
-                # Convert the frame for model input
-                with torch.no_grad():
-                    pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                    pil_image = aug(image=np.array(pil_image))['image']
-                    
-                    pil_image = np.transpose(pil_image, (2, 0, 1)).astype(np.float32)
-                    pil_image = torch.tensor(pil_image, dtype=torch.float).cpu()
-                    pil_image = pil_image.unsqueeze(0)
-                    
-                    outputs = model(pil_image)
-                    _, preds = torch.max(outputs.data, 1)
+                # Resize image for model input
+                pil_image = Image.fromarray(cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB))
+                pil_image = aug(image=np.array(pil_image))['image']
                 
-                # Get the prediction label
+                # Preprocess image for model
+                pil_image = np.transpose(pil_image, (2, 0, 1)).astype(np.float32)
+                pil_image = torch.tensor(pil_image, dtype=torch.float).unsqueeze(0).cpu()
+
+                # Run model prediction
+                outputs = model(pil_image)
+                _, preds = torch.max(outputs.data, 1)
                 pred_label = lb.classes_[preds]
-                print(f"Detection {i+1} - Label: {pred_label}, Confidence: {conf[i]:.2f}, Box: {box}")
                 
-                # Set drowning flag
+                # Determine bounding box color
                 isDrowning = (pred_label == 'drowning')
                 box_color = (0, 0, 255) if isDrowning else colors[i % len(colors)]
-
-                # Draw bounding box and label
+                
+                # Draw bounding box with label
                 x1, y1, x2, y2 = box
-                cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
+                cv2.rectangle(small_frame, (x1, y1), (x2, y2), box_color, 2)
                 label_text = f"ID:{i+1} {pred_label} ({conf[i]*100:.1f}%)"
-                cv2.putText(frame, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 2)
+                cv2.putText(small_frame, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 2)
+                print(f"Detection {i+1}: {pred_label}, Confidence: {conf[i]:.2f}")
 
-        else:
-            print("No persons detected in this frame.")
+            # Display the processed frame
+            cv2.imshow("Real-time Drowning Detection", small_frame)
 
-        # Display the output frame
-        cv2.imshow("Real-time Drowning Detection", frame)
+            # Quit if 'q' is pressed
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
-        # Press 'q' to quit
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    # Release the video capture object and close the display window
     cap.release()
     cv2.destroyAllWindows()
 
-# Start drowning detection using the camera feed
+# Start detection
 detectDrowning()
