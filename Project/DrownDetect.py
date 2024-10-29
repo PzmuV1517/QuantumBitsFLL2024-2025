@@ -48,10 +48,12 @@ aug = albumentations.Compose([
 
 def detectDrowning():
     isDrowning = False
-    fram = 0
+    frame = 0
     
     # Use camera feed instead of video file
     cap = cv2.VideoCapture(0)  # Use camera index 0 (default camera)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+
     
     if not cap.isOpened():
         print('Error: Unable to access the camera.')
