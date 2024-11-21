@@ -6,12 +6,12 @@ import math
 
 """
 how many pixel = actual distance in cm
-83px = 700cm --> 700/83 = MAP_SIZE_COEFF
+30px = 100cm --> 100/30 = MAP_SIZE_COEFF
 """
-MAP_SIZE_COEFF = 8.43
+MAP_SIZE_COEFF = 3.33333334
 
 pygame.init()
-screen = pygame.display.set_mode([1920, 1020])
+screen = pygame.display.set_mode([609, 609])
 screen.fill((255, 255, 255))
 running = True
 
