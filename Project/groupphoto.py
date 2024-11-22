@@ -8,12 +8,7 @@ tello.connect()
 
 tello.streamon()
 frame_read = tello.get_frame_read()
-
-
-tello.takeoff()
-
-tello.flip_back()
-
+time.sleep(5)
 cv2.imwrite("groupphoto.png", frame_read.frame)
-
+time.sleep(5)
 tello.land()
