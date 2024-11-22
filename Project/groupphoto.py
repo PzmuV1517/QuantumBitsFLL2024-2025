@@ -12,7 +12,7 @@ frame_read = tello.get_frame_read()
 
 tello.takeoff()
 
-flip_back()
+tello.flip_back()
 
 cv2.imwrite("groupphoto.png", frame_read.frame)
 
