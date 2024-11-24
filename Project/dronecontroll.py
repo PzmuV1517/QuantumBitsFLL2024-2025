@@ -1,73 +1,61 @@
 import json
-import time
+import math
 from djitellopy import Tello
+import time
 
-# Load JSON data
-with open('waypoint.json', 'r') as file:
-    data = json.load(file)
+# Function to move drone based on calculated distances and angles
+def move_to_waypoint(drone, wp):
+    for point in wp:
+        distance_cm = point['dist_cm']
+        angle_deg = point['angle_deg']
 
-waypoints = data['wp']
+        # Rotate to the angle
+        print(f"Rotating {angle_deg} degrees")
+        drone.rotate_clockwise(angle_deg)
+        time.sleep(2)
 
-# Initialize Tello
-tello = Tello()
-tello.connect()
+        # Move forward the specified distance
+        print(f"Moving forward {distance_cm} cm")
+        drone.move_forward(distance_cm)
+        time.sleep(2)
 
-# Speed controller (1-100 cm/s)
-default_speed = 65  # Default speed
-near_speed = 20     # Speed when nearing a waypoint
-deceleration_threshold = 30  # Distance (cm) to start decelerating
+# Main program
+def main():
+    # Load the JSON file
+    with open("waypoint.json", "r") as file:
+        data = json.load(file)
 
-# Set initial speed
-tello.set_speed(default_speed)
+    wp = data['wp']  # Waypoints
+    pos = data['pos']  # Positions (not used directly here)
 
-# Get battery status
-print(f"Battery: {tello.get_battery()}%")
+    # Connect to Tello drone
+    drone = Tello()
+    drone.connect()
 
-# Takeoff
-tello.takeoff()
+    # Check battery
+    battery = drone.get_battery()
+    print(f"Battery: {battery}%")
+    if battery < 20:
+        print("Battery too low for flight. Please charge the drone.")
+        return
 
-# Execute waypoints
-for i, wp in enumerate(waypoints):
-    try:
-        distance = wp['dist_cm']
-        angle = wp['angle_deg']
+    # Take off
+    print("Taking off...")
+    drone.takeoff()
+    time.sleep(5)
 
-        remaining_distance = distance
-        step_size = 100  # Maximum step size (cm)
+    # Fly to 1 meter altitude
+    print("Flying to 1 meter altitude...")
+    drone.move_up(100)
+    time.sleep(2)
 
-        print(f"Waypoint {i+1}: Moving {distance} cm in steps")
-        while remaining_distance > 0:
-            # Calculate next step size
-            move_distance = min(step_size, remaining_distance)
+    # Move along the waypoints
+    print("Following waypoints...")
+    move_to_waypoint(drone, wp)
 
-            # Adjust speed when nearing the waypoint
-            if remaining_distance <= deceleration_threshold:
-                print(f"Decelerating to {near_speed} cm/s")
-                tello.set_speed(near_speed)
-            else:
-                tello.set_speed(default_speed)
+    # Land the drone
+    print("Landing...")
+    drone.land()
 
-            # Move forward the calculated distance
-            tello.move_forward(move_distance)
-            remaining_distance -= move_distance
-            print(f"Remaining distance: {remaining_distance} cm")
-            time.sleep(1)  # Allow drone to stabilize
-
-        # Reset to default speed after reaching waypoint
-        tello.set_speed(default_speed)
-
-        # Rotate (optimize direction)
-        if angle != 0:
-            print(f"Waypoint {i+1}: Rotating {angle} degrees")
-            if angle > 0:
-                tello.rotate_clockwise(angle)
-            else:
-                tello.rotate_counter_clockwise(abs(angle))
-            time.sleep(1)  # Allow stabilization after rotation
-
-    except Exception as e:
-        print(f"Error at waypoint {i+1}: {e}")
-
-# Land
-print("Path completed. Landing...")
-tello.land()
+if __name__ == "__main__":
+    main()
