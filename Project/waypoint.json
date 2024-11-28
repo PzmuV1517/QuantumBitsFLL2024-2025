@@ -6,32 +6,41 @@
             "angle_deg": 90
         },
         {
-            "dist_cm": 212,
-            "dist_px": 127,
-            "angle_deg": 135
+            "dist_cm": 150,
+            "dist_px": 90,
+            "angle_deg": 90
         },
         {
             "dist_cm": 150,
             "dist_px": 90,
-            "angle_deg": 135
+            "angle_deg": 90
+        },
+        {
+            "dist_cm": 150,
+            "dist_px": 90,
+            "angle_deg": 90
         }
     ],
     "pos": [
         [
             150,
-            120
+            150
         ],
         [
             240,
-            120
+            150
+        ],
+        [
+            240,
+            240
         ],
         [
             150,
-            210
+            240
         ],
         [
             150,
-            120
+            150
         ]
     ]
 }

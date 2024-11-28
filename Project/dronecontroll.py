@@ -1,7 +1,17 @@
 import json
 import math
 from djitellopy import Tello
+import pygame
+import cv2
 import time
+
+# Initialize Pygame
+pygame.init()
+
+# Constants for Pygame window
+WINDOW_WIDTH = 960
+WINDOW_HEIGHT = 720
+WINDOW_TITLE = "Drone Camera Feed"
 
 # Function to move drone based on calculated distances and angles
 def move_to_waypoint(drone, wp):
@@ -19,6 +29,14 @@ def move_to_waypoint(drone, wp):
         drone.move_forward(distance_cm)
         time.sleep(2)
 
+# Function to convert OpenCV frame to Pygame surface
+def frame_to_surface(frame):
+    # Convert BGR (OpenCV format) to RGB (Pygame format)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Transpose the frame to match Pygame's (width, height) format
+    surface = pygame.surfarray.make_surface(frame_rgb.swapaxes(0, 1))
+    return surface
+
 # Main program
 def main():
     # Load the JSON file
@@ -26,16 +44,22 @@ def main():
         data = json.load(file)
 
     wp = data['wp']  # Waypoints
-    pos = data['pos']  # Positions (not used directly here)
 
     # Connect to Tello drone
     drone = Tello()
     drone.connect()
 
+    # Start the video stream
+    drone.streamon()
+
+    # Create a Pygame window
+    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    pygame.display.set_caption(WINDOW_TITLE)
+
     # Check battery
     battery = drone.get_battery()
     print(f"Battery: {battery}%")
-    if battery < 20:
+    if battery < 40:
         print("Battery too low for flight. Please charge the drone.")
         return
 
@@ -49,13 +73,48 @@ def main():
     drone.move_up(100)
     time.sleep(2)
 
-    # Move along the waypoints
-    print("Following waypoints...")
-    move_to_waypoint(drone, wp)
+    running = True
+    try:
+        # Infinite loop to run the waypoints endlessly
+        while running:
+            print("Following waypoints...")
+            move_to_waypoint(drone, wp)
+            drone.streamoff()
+            
+            drone.set_video_direction(drone.CAMERA_DOWNWARD)
+            drone.streamon()
 
-    # Land the drone
-    print("Landing...")
-    drone.land()
+            # Capture the video frame
+            frame = drone.get_frame_read().frame
+
+            # Debug: Check if the frame is valid
+            if frame is not None and frame.size > 0:
+                # Convert the frame to a Pygame surface
+                frame_surface = frame_to_surface(frame)
+
+                # Render the frame on the Pygame window
+                screen.blit(pygame.transform.scale(frame_surface, (WINDOW_WIDTH, WINDOW_HEIGHT)), (0, 0))
+                pygame.display.flip()
+            else:
+                print("Warning: Frame is None or empty!")
+
+            # Event handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+            # Add a small delay to limit CPU usage
+            pygame.time.delay(10)
+
+    except KeyboardInterrupt:
+        print("Manual interruption. Landing the drone...")
+
+    finally:
+        # Stop video stream and land the drone
+        drone.streamoff()
+        print("Landing...")
+        drone.land()
+        pygame.quit()
 
 if __name__ == "__main__":
     main()
