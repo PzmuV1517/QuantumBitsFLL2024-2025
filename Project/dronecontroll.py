@@ -79,10 +79,6 @@ def main():
         while running:
             print("Following waypoints...")
             move_to_waypoint(drone, wp)
-            drone.streamoff()
-            
-            drone.set_video_direction(drone.CAMERA_DOWNWARD)
-            drone.streamon()
 
             # Capture the video frame
             frame = drone.get_frame_read().frame
