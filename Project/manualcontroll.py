@@ -22,44 +22,29 @@ class FrontEnd(object):
             - W and S: Up and down.
 
     """
-
     def __init__(self):
-        # Init pygame
         pygame.init()
-
-        # Creat pygame window
-        pygame.display.set_caption("Tello video stream")
-        self.screen = pygame.display.set_mode([960, 720])
-
-        # Init Tello object that interacts with the Tello drone
+        self.screen = pygame.display.set_mode([960, 720], pygame.RESIZABLE | pygame.DOUBLEBUF)
+        pygame.display.set_caption("Tello: Camera Feed")
         self.tello = Tello()
-
-        # Drone velocities between -100~100
         self.for_back_velocity = 0
         self.left_right_velocity = 0
         self.up_down_velocity = 0
         self.yaw_velocity = 0
         self.speed = 10
-
         self.send_rc_control = False
-
-        # create update timer
         pygame.time.set_timer(pygame.USEREVENT + 1, 1000 // FPS)
+        self.window_width = 960
+        self.window_height = 720
 
     def run(self):
-
         self.tello.connect()
         self.tello.set_speed(self.speed)
-
-        # In case streaming is on. This happens when we quit this program without the escape key.
         self.tello.streamoff()
         self.tello.streamon()
-
         frame_read = self.tello.get_frame_read()
-
         should_stop = False
         while not should_stop:
-
             for event in pygame.event.get():
                 if event.type == pygame.USEREVENT + 1:
                     self.update()
@@ -72,27 +57,24 @@ class FrontEnd(object):
                         self.keydown(event.key)
                 elif event.type == pygame.KEYUP:
                     self.keyup(event.key)
+                elif event.type == pygame.VIDEORESIZE:
+                    self.window_width, self.window_height = event.size
 
             if frame_read.stopped:
                 break
 
             self.screen.fill([0, 0, 0])
-
             frame = frame_read.frame
-            # battery n. 电池
             text = "Battery: {}%".format(self.tello.get_battery())
-            cv2.putText(frame, text, (5, 720 - 5),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(frame, text, (5, 720 - 5), cv2.FONT_HERSHEY_PLAIN, 2, (0, 0, 0), 2)
             frame = np.rot90(frame)
             frame = np.flipud(frame)
-
             frame = pygame.surfarray.make_surface(frame)
+            frame = pygame.transform.scale(frame, (self.window_width, self.window_height))
             self.screen.blit(frame, (0, 0))
-            pygame.display.update()
-
+            pygame.display.flip()
             time.sleep(1 / FPS)
 
-        # Call it always before finishing. To deallocate resources.
         self.tello.end()
 
     def keydown(self, key):
