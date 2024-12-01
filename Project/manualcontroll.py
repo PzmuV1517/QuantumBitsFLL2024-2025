@@ -36,15 +36,15 @@ class FrontEnd(object):
         pygame.time.set_timer(pygame.USEREVENT + 1, 1000 // FPS)
         self.window_width = 960
         self.window_height = 720
-        if self.tello.get_battery() <= 20:
-            print("Battery dangerously low! Please charge the drone!")
-            return
 
     def run(self):
         self.tello.connect()
         self.tello.set_speed(self.speed)
         self.tello.streamoff()
         self.tello.streamon()
+        if self.tello.get_battery() <= 20:
+            print("Battery dangerously low! Please charge the drone!")
+            return
         frame_read = self.tello.get_frame_read()
         should_stop = False
         while not should_stop:
