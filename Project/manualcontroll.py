@@ -36,6 +36,9 @@ class FrontEnd(object):
         pygame.time.set_timer(pygame.USEREVENT + 1, 1000 // FPS)
         self.window_width = 960
         self.window_height = 720
+        if self.tello.get_battery() <= 20:
+            print("Battery dangerously low! Please charge the drone!")
+            return
 
     def run(self):
         self.tello.connect()
@@ -65,8 +68,9 @@ class FrontEnd(object):
 
             self.screen.fill([0, 0, 0])
             frame = frame_read.frame
-            text = "Battery: {}%".format(self.tello.get_battery())
-            cv2.putText(frame, text, (5, 720 - 5), cv2.FONT_HERSHEY_PLAIN, 2, (0, 0, 0), 2)
+            batterytext = "Battery: {}%".format(self.tello.get_battery())
+            cv2.putText(frame, batterytext, (5, 720 - 5), cv2.FONT_HERSHEY_PLAIN, 2, (0, 0, 0), 2)
+
             frame = np.rot90(frame)
             frame = np.flipud(frame)
             frame = pygame.surfarray.make_surface(frame)
