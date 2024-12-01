@@ -1,15 +1,14 @@
-import cvlib as cv
-from cvlib.object_detection import draw_bbox
+import albumentations
 import cv2
-import time
-import numpy as np
 import joblib
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import albumentations
-from torch.utils.data import Dataset, DataLoader
 from PIL import Image
+
+import cvlib as cv
+from cvlib.object_detection import draw_bbox
 
 # Load label binarizer and model
 print('Loading model and label binarizer...')
@@ -49,7 +48,7 @@ aug = albumentations.Compose([
 def detectDrowning():
     isDrowning = False
     frame = 0
-    
+
     # Use camera feed instead of video file
     cap = cv2.VideoCapture(0)  # Use camera index 0 (default camera)
     cap.set(cv2.CAP_PROP_FPS, 30)

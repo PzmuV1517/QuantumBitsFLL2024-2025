@@ -1,9 +1,9 @@
 import json
-import math
-from djitellopy import Tello
-import pygame
-import cv2
 import time
+
+import cv2
+import pygame
+from djitellopy import Tello
 
 # Initialize Pygame
 pygame.init()

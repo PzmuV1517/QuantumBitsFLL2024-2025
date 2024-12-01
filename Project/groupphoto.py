@@ -24,8 +24,8 @@ frame = frame_read.frame  # Get the current frame
 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert to RGB format
 
 # Save the image
-cv2.imwrite("groupphoto.png", frame_rgb)
-print("Image saved as 'groupphoto.png'")
+cv2.imwrite("group-photo.png", frame_rgb)
+print("Image saved as 'group-photo.png'")
 time.sleep(2)
 
 # Turn off the video stream

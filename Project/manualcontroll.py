@@ -18,7 +18,7 @@ class FrontEnd(object):
             - T: Takeoff
             - L: Land
             - Arrow keys: Forward, backward, left and right.
-            - A and D: Counter clockwise and clockwise rotations (yaw)
+            - A and D: Counterclockwise and clockwise rotations (yaw)
             - W and S: Up and down.
 
     """
@@ -112,7 +112,7 @@ class FrontEnd(object):
             self.up_down_velocity = S
         elif key == pygame.K_s:  # set down velocity
             self.up_down_velocity = -S
-        elif key == pygame.K_a:  # set yaw counter clockwise velocity
+        elif key == pygame.K_a:  # set yaw counterclockwise velocity
             self.yaw_velocity = -S
         elif key == pygame.K_d:  # set yaw clockwise velocity
             self.yaw_velocity = S
@@ -134,7 +134,7 @@ class FrontEnd(object):
             self.tello.takeoff()
             self.send_rc_control = True
         elif key == pygame.K_l:  # land
-            not self.tello.land()
+            self.tello.land()
             self.send_rc_control = False
 
     def update(self):
