@@ -55,13 +55,13 @@ def main():
     drone.streamon()
 
     # Create a Pygame window
-    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
     pygame.display.set_caption(WINDOW_TITLE)
 
     # Check battery
     battery = drone.get_battery()
     print(f"Battery: {battery}%")
-    if battery < 20:
+    if battery < 40:
         print("Battery too low for flight. Please charge the drone.")
         return
 
@@ -96,11 +96,14 @@ def main():
             try:
                 # Debug: Check if the frame is valid
                 if frame is not None and frame.size > 0:
+                    batterytext = "Battery: {}%".format(drone.get_battery())
+                    cv2.putText(frame, batterytext, (5, 720 - 5), cv2.FONT_HERSHEY_PLAIN, 2, (0, 0, 0), 2)
+
                     # Convert the frame to a Pygame surface
                     frame_surface = frame_to_surface(frame)
 
                     # Render the frame on the Pygame window
-                    screen.blit(pygame.transform.scale(frame_surface, (WINDOW_WIDTH, WINDOW_HEIGHT)), (0, 0))
+                    screen.blit(pygame.transform.scale(frame_surface, (screen.get_width(), screen.get_height())),(0, 0))
                     pygame.display.flip()
                 else:
                     print("Warning: Frame is None or empty!")
