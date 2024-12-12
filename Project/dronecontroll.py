@@ -48,9 +48,13 @@ class CustomCNN(nn.Module):
         x = self.fc2(x)
         return x
 
+# Check if GPU is available and set device accordingly
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Using device: {device}')
+
 print('Model Loaded...')
-model = CustomCNN()
-model.load_state_dict(torch.load('model.pth', map_location='cpu'))
+model = CustomCNN().to(device)
+model.load_state_dict(torch.load('model.pth', map_location=device))
 model.eval()
 print('Loaded model state_dict...')
 
@@ -153,7 +157,7 @@ def main():
                             pil_image = aug(image=np.array(pil_image))['image']
                             
                             pil_image = np.transpose(pil_image, (2, 0, 1)).astype(np.float32)
-                            pil_image = torch.tensor(pil_image, dtype=torch.float).cpu()
+                            pil_image = torch.tensor(pil_image, dtype=torch.float).to(device)
                             pil_image = pil_image.unsqueeze(0)
                             
                             outputs = model(pil_image)
