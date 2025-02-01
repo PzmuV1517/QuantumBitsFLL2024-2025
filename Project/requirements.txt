@@ -36,3 +36,4 @@ tifffile
 torch
 typing-extensions
 urllib3
+ultralytics
