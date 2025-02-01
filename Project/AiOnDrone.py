@@ -30,10 +30,10 @@ aug = albumentations.Compose([
 # Function to convert OpenCV frame to Pygame surface
 def frame_to_surface(frame):
     # Convert BGR (OpenCV format) to RGB (Pygame format)
-    #frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # Transpose the frame to match Pygame's (width, height) format
-    surface = pygame.surfarray.make_surface(frame_rgb.swapaxes(0, 1))
+    surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
     return surface
 
 # Main program
