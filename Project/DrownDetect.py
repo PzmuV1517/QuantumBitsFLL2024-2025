@@ -9,10 +9,6 @@ from cvlib.object_detection import draw_bbox
 print('Loading YOLO model...')
 model = YOLO('best.pt')  # replace with your model path
 
-aug = albumentations.Compose([
-    albumentations.Resize(224, 224),
-])
-
 def detectDrowning():
     isDrowning = False
 

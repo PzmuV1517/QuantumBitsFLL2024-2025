@@ -36,12 +36,34 @@ def move_to_waypoint(drone, wp):
 
 # Function to convert OpenCV frame to Pygame surface
 def frame_to_surface(frame):
-    # Convert BGR (OpenCV format) to RGB (Pygame format)
-    # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
 
     # Transpose the frame to match Pygame's (width, height) format
     surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
     return surface
+
+# Function to center the drone over the detected logo
+def center_drone(drone, x_center, y_center, frame_width, frame_height):
+    x_error = x_center - frame_width // 2
+    y_error = y_center - frame_height // 2
+
+    print(f"x_error: {x_error}, y_error: {y_error}")
+
+    if abs(x_error) > 20:
+        if x_error > 0:
+            print("Moving right")
+            drone.move_right(20)
+        else:
+            print("Moving left")
+            drone.move_left(20)
+
+    if abs(y_error) > 20:
+        if y_error > 0:
+            print("Moving back")
+            drone.move_back(20)
+        else:
+            print("Moving forward")
+            drone.move_forward(20)
 
 # Main program
 def main():
@@ -94,15 +116,25 @@ def main():
         while running:
             # Capture the video frame
             frame = drone.get_frame_read().frame
+            frame_height, frame_width, _ = frame.shape
 
             # Run the frame through the YOLO model
             results = model(frame)
 
-            # Draw bounding boxes on the frame
+            # Draw bounding boxes on the frame and check for logo
+            logo_detected = False
             for result in results:
                 for box in result.boxes:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                    # Check if the detected object is the logo
+                    if box.cls == 'logo-D7hc':  # Replace 'logo-D7hc' with the actual class name for the logo
+                        logo_detected = True
+                        x_center = (x1 + x2) // 2
+                        y_center = (y1 + y2) // 2
+                        print(f"Logo detected at: x_center={x_center}, y_center={y_center}")
+                        center_drone(drone, x_center, y_center, frame_width, frame_height)
 
             # Convert frame to Pygame surface
             surface = frame_to_surface(frame)
@@ -115,6 +147,12 @@ def main():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+
+            # If logo is detected and drone is centered, land the drone
+            if logo_detected and abs(x_center - frame_width // 2) <= 20 and abs(y_center - frame_height // 2) <= 20:
+                print("Logo detected and centered. Landing the drone...")
+                drone.land()
+                running = False
 
             # Add a small delay to limit CPU usage
             pygame.time.delay(10)
