@@ -1,0 +1,19 @@
+[2025-02-02 15:35:03] Drone program started
+[2025-02-02 15:35:09] Drone program started
+[2025-02-02 15:36:10] Drone program started
+[2025-02-02 15:43:43] Drone program started
+[2025-02-02 15:51:33] Drone program started
+[2025-02-02 15:52:31] Drone program ended
+[2025-02-02 15:59:29] Drone program started
+[2025-02-02 16:06:17] Drone program started
+[2025-02-02 16:06:42] Drone program ended
+[2025-02-02 16:07:14] Drone program started
+[2025-02-02 16:07:43] Detection: class=logo-D7hc, confidence=0.42
+[2025-02-02 16:07:44] Emergency stop - all movement halted
+[2025-02-02 16:07:45] Moving right
+[2025-02-02 16:07:45] Detection: class=logo-D7hc, confidence=0.37
+[2025-02-02 16:07:45] Emergency stop - all movement halted
+[2025-02-02 16:07:46] Moving right
+[2025-02-02 16:07:49] Detection: class=logo-D7hc, confidence=0.34
+[2025-02-02 16:07:49] Moving forward
+[2025-02-02 16:08:11] Drone program ended

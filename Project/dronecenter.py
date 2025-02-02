@@ -5,6 +5,16 @@ import pygame
 import cv2
 from djitellopy import Tello
 from ultralytics import YOLO
+from datetime import datetime
+
+# Add debug function at top of file
+def debug_detection(box):
+    """Debug helper to print detection details"""
+    class_id = int(box.cls[0])
+    class_name = model.names[class_id]
+    confidence = float(box.conf[0])
+    print(f"Detection: class={class_name}, confidence={confidence:.2f}")
+    log_action(f"Detection: class={class_name}, confidence={confidence:.2f}")
 
 # Initialize Pygame
 pygame.init()
@@ -13,6 +23,7 @@ pygame.init()
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 720
 WINDOW_TITLE = "Drone Camera Feed"
+CENTERING_THRESHOLD = 20  # Pixels threshold for considering drone centered
 
 # Load YOLO model
 print('Loading YOLO model...')
@@ -42,6 +53,13 @@ def frame_to_surface(frame):
     surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
     return surface
 
+# Function to log drone actions
+def log_action(action):
+    """Write drone actions to log file with timestamp"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open("drone_log.txt", "a") as f:
+        f.write(f"[{timestamp}] {action}\n")
+
 # Function to center the drone over the detected logo
 def center_drone(drone, x_center, y_center, frame_width, frame_height):
     x_error = x_center - frame_width // 2
@@ -49,24 +67,39 @@ def center_drone(drone, x_center, y_center, frame_width, frame_height):
 
     print(f"x_error: {x_error}, y_error: {y_error}")
 
-    if abs(x_error) > 20:
+    if abs(x_error) > CENTERING_THRESHOLD:
         if x_error > 0:
+            log_action("Moving right")
             print("Moving right")
             drone.move_right(20)
         else:
+            log_action("Moving left")
             print("Moving left")
             drone.move_left(20)
+        return False
 
-    if abs(y_error) > 20:
+    if abs(y_error) > CENTERING_THRESHOLD:
         if y_error > 0:
+            log_action("Moving back")
             print("Moving back")
             drone.move_back(20)
         else:
+            log_action("Moving forward")
             print("Moving forward")
             drone.move_forward(20)
+        return False
+    
+    return True  # Return True if drone is centered
+
+def stop_all_movement(drone):
+    """Emergency stop all drone movement"""
+    drone.send_rc_control(0, 0, 0, 0)
+    time.sleep(0.1)  # Short pause to ensure commands register
+    log_action("Emergency stop - all movement halted")
 
 # Main program
 def main():
+    log_action("Drone program started")
     # Load the JSON file
     with open("waypoint.json", "r") as file:
         data = json.load(file)
@@ -98,7 +131,7 @@ def main():
 
     # Fly to 1 meter altitude
     print("Flying to 1 meter altitude...")
-    drone.move_up(100)
+    drone.move_up(50)
     time.sleep(2)
 
     running = True
@@ -127,14 +160,30 @@ def main():
                 for box in result.boxes:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-                    # Check if the detected object is the logo
-                    if box.cls == 'logo-D7hc':  # Replace 'logo-D7hc' with the actual class name for the logo
+                    
+                    # Debug each detection
+                    debug_detection(box)
+                    
+                    # Get actual class name from model
+                    class_id = int(box.cls[0])
+                    class_name = model.names[class_id]
+                    
+                    # Compare with actual class name
+                    if class_name == 'logo-D7hc':  # Verify this matches your model's class name
+                        if not logo_detected:
+                            print("Logo detected - stopping movement")
+                            stop_all_movement(drone)
+                            wp_thread.join(timeout=1.0)  # Wait for waypoint thread to stop
+                        
                         logo_detected = True
                         x_center = (x1 + x2) // 2
                         y_center = (y1 + y2) // 2
-                        print(f"Logo detected at: x_center={x_center}, y_center={y_center}")
-                        center_drone(drone, x_center, y_center, frame_width, frame_height)
+                        
+                        if center_drone(drone, x_center, y_center, frame_width, frame_height):
+                            print("Logo centered - Landing drone")
+                            drone.land()
+                            running = False
+                            break
 
             # Convert frame to Pygame surface
             surface = frame_to_surface(frame)
@@ -147,12 +196,6 @@ def main():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-
-            # If logo is detected and drone is centered, land the drone
-            if logo_detected and abs(x_center - frame_width // 2) <= 20 and abs(y_center - frame_height // 2) <= 20:
-                print("Logo detected and centered. Landing the drone...")
-                drone.land()
-                running = False
 
             # Add a small delay to limit CPU usage
             pygame.time.delay(10)
@@ -169,6 +212,7 @@ def main():
         print("Landing...")
         drone.land()
         pygame.quit()
+        log_action("Drone program ended")
 
 if __name__ == "__main__":
     main()
