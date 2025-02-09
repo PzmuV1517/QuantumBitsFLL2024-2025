@@ -13,6 +13,7 @@ pygame.init()
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 720
 WINDOW_TITLE = "Drone Camera Feed"
+SPEED = 50  # 50% speed
 
 # Load YOLO model
 print('Loading YOLO model...')
@@ -37,10 +38,29 @@ def move_to_waypoint(drone, wp):
 # Function to convert OpenCV frame to Pygame surface
 def frame_to_surface(frame):
 
-
     # Transpose the frame to match Pygame's (width, height) format
     surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
     return surface
+
+# Custom move function using send_rc_control
+def custom_move(drone, direction, distance_cm):
+    duration = distance_cm / SPEED  # Calculate duration based on speed and distance
+
+    if direction == "left":
+        drone.send_rc_control(-SPEED, 0, 0, 0)
+    elif direction == "right":
+        drone.send_rc_control(SPEED, 0, 0, 0)
+    elif direction == "forward":
+        drone.send_rc_control(0, SPEED, 0, 0)
+    elif direction == "back":
+        drone.send_rc_control(0, -SPEED, 0, 0)
+    elif direction == "up":
+        drone.send_rc_control(0, 0, SPEED, 0)
+    elif direction == "down":
+        drone.send_rc_control(0, 0, -SPEED, 0)
+
+    time.sleep(duration)
+    drone.send_rc_control(0, 0, 0, 0)  # Stop the drone
 
 # Function to center the drone over the detected logo
 def center_drone(drone, x_center, y_center, frame_width, frame_height):
@@ -52,18 +72,18 @@ def center_drone(drone, x_center, y_center, frame_width, frame_height):
     if abs(x_error) > 20:
         if x_error > 0:
             print("Moving right")
-            drone.move_right(20)
+            custom_move(drone, "right", 20)
         else:
             print("Moving left")
-            drone.move_left(20)
+            custom_move(drone, "left", 20)
 
     if abs(y_error) > 20:
         if y_error > 0:
             print("Moving back")
-            drone.move_back(20)
+            custom_move(drone, "back", 20)
         else:
             print("Moving forward")
-            drone.move_forward(20)
+            custom_move(drone, "forward", 20)
 
 # Main program
 def main():
@@ -98,7 +118,7 @@ def main():
 
     # Fly to 1 meter altitude
     print("Flying to 1 meter altitude...")
-    drone.move_up(100)
+    custom_move(drone, "up", 100)
     time.sleep(2)
 
     running = True
@@ -133,6 +153,8 @@ def main():
                         logo_detected = True
                         x_center = (x1 + x2) // 2
                         y_center = (y1 + y2) // 2
+                        time.sleep(5)
+                        drone.send_rc_control(0, 0, 0, 0)  # Stop the drone
                         print(f"Logo detected at: x_center={x_center}, y_center={y_center}")
                         center_drone(drone, x_center, y_center, frame_width, frame_height)
 
