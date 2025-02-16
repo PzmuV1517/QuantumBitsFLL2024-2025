@@ -18,52 +18,9 @@ WINDOW_TITLE = "Drone Camera Feed"
 print('Loading YOLO model...')
 model = YOLO('best.pt')  # replace with your model path
 
-# Add these constants at the top with other constants
-LOGO_DETECTION_THRESHOLD = 10  # Number of consecutive frames logo needs to be detected
-DETECTION_RESET_THRESHOLD = 5  # Number of frames without detection before resetting counter
-
-# Function to convert OpenCV frame to Pygame surface
-def frame_to_surface(frame):
-
-    # Transpose the frame to match Pygame's (width, height) format
-    surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-    return surface
-
-# Function to center the drone over the detected logo
-def center_drone(drone, x_center, y_center, frame_width, frame_height):
-    x_error = x_center - frame_width // 2
-    y_error = y_center - frame_height // 2
-
-    print(f"x_error: {x_error}, y_error: {y_error}")
-
-    if abs(x_error) > 20:
-        if x_error > 0:
-            print("Moving right")
-            drone.move_right(20)
-            time.sleep(2)  # Add delay after movement
-        else:
-            print("Moving left")
-            drone.move_left(20)
-            time.sleep(2)  # Add delay after movement
-
-    if abs(y_error) > 20:
-        if y_error > 0:
-            print("Moving back")
-            drone.move_back(20)
-            time.sleep(2)  # Add delay after movement
-        else:
-            print("Moving forward")
-            drone.move_forward(20)
-            time.sleep(2)  # Add delay after movement
-
 # Function to move drone based on calculated distances and angles
-def move_to_waypoint(drone, wp, stop_event):
+def move_to_waypoint(drone, wp):
     for point in wp:
-        if stop_event.is_set():
-            print("Waypoint function terminated.")
-            time.sleep(2)  # Allow drone to stabilize
-            return
-
         distance_cm = point['dist_cm']
         angle_deg = point['angle_deg']
 
@@ -76,6 +33,15 @@ def move_to_waypoint(drone, wp, stop_event):
         print(f"Moving forward {distance_cm} cm")
         drone.move_forward(distance_cm)
         time.sleep(2)
+
+# Function to convert OpenCV frame to Pygame surface
+def frame_to_surface(frame):
+    # Convert BGR (OpenCV format) to RGB (Pygame format)
+    # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # Transpose the frame to match Pygame's (width, height) format
+    surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+    return surface
 
 # Main program
 def main():
@@ -101,8 +67,6 @@ def main():
     print(f"Battery: {battery}%")
     if battery < 40:
         print("Battery too low for flight. Please charge the drone.")
-        drone.streamoff()
-        pygame.quit()
         return
 
     # Take off
@@ -112,66 +76,33 @@ def main():
 
     # Fly to 1 meter altitude
     print("Flying to 1 meter altitude...")
-    drone.move_up(70)
+    drone.move_up(100)
     time.sleep(2)
-
-    stop_event = threading.Event()
-    centering_mode = False
-    logo_detection_counter = 0
-    frames_without_detection = 0
 
     running = True
     try:
         # Create a thread for moving to waypoints
         def waypoint_thread():
             print("Following waypoints...")
-            move_to_waypoint(drone, wp, stop_event)
+            move_to_waypoint(drone, wp)
 
         # Start the waypoint thread
         wp_thread = threading.Thread(target=waypoint_thread)
         wp_thread.start()
 
+        # Infinite loop to display the video feed
         while running:
             # Capture the video frame
             frame = drone.get_frame_read().frame
-            frame_height, frame_width, _ = frame.shape
 
             # Run the frame through the YOLO model
             results = model(frame)
 
-            # Draw bounding boxes on the frame and check for logo
-            logo_detected = False
+            # Draw bounding boxes on the frame
             for result in results:
                 for box in result.boxes:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-                    # Check if the detected object is the logo
-                    class_id = int(box.cls[0])
-                    class_name = model.names[class_id]
-                    if class_name == 'logo-D7hc':  # Replace 'logo-D7hc' with the actual class name for the logo
-                        logo_detected = True
-                        x_center = (x1 + x2) // 2
-                        y_center = (y1 + y2) // 2
-                        print(f"Logo detected at: x_center={x_center}, y_center={y_center}")
-                        
-                        # Increment detection counter
-                        logo_detection_counter += 1
-                        frames_without_detection = 0
-                        
-                        # Only stop waypoint navigation if we've seen the logo enough times
-                        if logo_detection_counter >= LOGO_DETECTION_THRESHOLD:
-                            print(f"Logo consistently detected for {logo_detection_counter} frames. Stopping waypoint navigation...")
-                            stop_event.set()
-
-            # Reset counter if logo is not detected
-            if not logo_detected:
-                frames_without_detection += 1
-                if frames_without_detection >= DETECTION_RESET_THRESHOLD:
-                    if logo_detection_counter > 0:
-                        print(f"Lost logo detection. Resetting counter. Previous count: {logo_detection_counter}")
-                    logo_detection_counter = 0
-                    frames_without_detection = 0
 
             # Convert frame to Pygame surface
             surface = frame_to_surface(frame)
@@ -190,57 +121,6 @@ def main():
 
         # Wait for the waypoint thread to finish
         wp_thread.join()
-
-        centering_mode = True
-        print("Starting centering mode...")
-
-        # Start centering process after waypoint thread finishes
-        while running:
-            # Capture the video frame
-            frame = drone.get_frame_read().frame
-            frame_height, frame_width, _ = frame.shape
-
-            # Run the frame through the YOLO model
-            results = model(frame)
-
-            # Draw bounding boxes on the frame and check for logo
-            logo_detected = False
-            for result in results:
-                for box in result.boxes:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-                    # Check if the detected object is the logo
-                    class_id = int(box.cls[0])
-                    class_name = model.names[class_id]
-                    if class_name == 'logo-D7hc':  # Replace 'logo-D7hc' with the actual class name for the logo
-                        logo_detected = True
-                        x_center = (x1 + x2) // 2
-                        y_center = (y1 + y2) // 2
-                        print(f"Logo detected at: x_center={x_center}, y_center={y_center}")
-                        if centering_mode and logo_detected:
-                            center_drone(drone, x_center, y_center, frame_width, frame_height)
-
-            # Convert frame to Pygame surface
-            surface = frame_to_surface(frame)
-
-            # Display the frame
-            screen.blit(surface, (0, 0))
-            pygame.display.update()
-
-            # Check for quit events
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-
-            # If logo is detected and drone is centered, land the drone
-            if logo_detected and abs(x_center - frame_width // 2) <= 20 and abs(y_center - frame_height // 2) <= 20:
-                print("Logo detected and centered. Landing the drone...")
-                drone.land()
-                running = False
-
-            # Add a small delay to limit CPU usage
-            pygame.time.delay(10)
 
     except KeyboardInterrupt:
         print("Manual interruption. Landing the drone...")
