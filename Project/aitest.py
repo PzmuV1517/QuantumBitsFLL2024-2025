@@ -7,4 +7,4 @@ model = YOLO("best.pt")
 source = "video1.mp4"
 
 # Run inference on the source
-results = model(source, stream=True)  # generator of Results objects
+results = model(source, show=True)  # generator of Results objects

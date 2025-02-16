@@ -11,11 +11,10 @@ pygame.init()
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 720
 WINDOW_TITLE = "Drone Camera Feed"
-FORWARD_SPEED = 30  # Speed setting (10-100)
+FORWARD_SPEED = 20  # Speed setting (10-100)
 DETECTION_THRESHOLD = 5  # Number of frames to confirm logo detection
 
 def frame_to_surface(frame):
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
     return surface
 
