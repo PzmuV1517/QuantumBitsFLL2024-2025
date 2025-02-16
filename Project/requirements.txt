@@ -18,7 +18,7 @@ opencv-python-headless
 packaging
 Pillow
 pygame
-playsound
+##playsound
 progressbar
 pyparsing
 python-dateutil

@@ -34,7 +34,7 @@ def main():
         print("2. aitest.py")
         print("3. manualcontrol.py")
         print("4. droneflip.py")
-        print("5. Exit")
+        print("0. Exit")
 
         choice = input("Enter your choice (1-5): ")
 
@@ -46,7 +46,7 @@ def main():
             run_script("manualcontrol.py")
         elif choice == '4':
             run_script("droneflip.py")
-        elif choice == '5':
+        elif choice == '0':
             print("Exiting...")
             break
         else:
