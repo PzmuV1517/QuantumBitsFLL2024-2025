@@ -16,7 +16,7 @@ WINDOW_TITLE = "Drone Camera Feed"
 
 # Load YOLO model
 print('Loading YOLO model...')
-model = YOLO('best.pt')  # replace with your model path
+model = YOLO('logo.pt')  # replace with your model path
 
 # Add these constants at the top with other constants
 LOGO_DETECTION_THRESHOLD = 10  # Number of consecutive frames logo needs to be detected

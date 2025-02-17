@@ -21,7 +21,7 @@ def frame_to_surface(frame):
 def main():
     # Load YOLO model
     print('Loading YOLO model...')
-    model = YOLO('best.pt')
+    model = YOLO('logo.pt')
 
     # Initialize drone
     drone = Tello()

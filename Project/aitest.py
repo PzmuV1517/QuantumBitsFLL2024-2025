@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 
 # Load a pretrained YOLO11n model
-model = YOLO("best.pt")
+model = YOLO("drowning.pt")
 
 # Define path to video file
 source = "video1.mp4"
