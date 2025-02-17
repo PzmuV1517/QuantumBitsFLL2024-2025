@@ -17,7 +17,7 @@ time.sleep(2)  # Give the drone some time to stabilize
 tello.move_up(30)
 time.sleep(2) # Give the drone some time to stabilize
 tello.flip_back()
-time.sleep(2)
+time.sleep(1)
 
 # Capture the frame
 frame = frame_read.frame  # Get the current frame
