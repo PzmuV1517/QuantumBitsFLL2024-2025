@@ -33,7 +33,7 @@ def main():
         print("1. dronetest.py")
         print("2. dronetestcolor.py")
         print("3. aitest.py")
-        print("4. manualcontrol.py")
+        print("4. manualcontroll.py")
         print("5. droneflip.py")
         print("6. groupphoto.py")
         print("7. battery.py")
@@ -48,7 +48,7 @@ def main():
         elif choice == '3':
             run_script("aitest.py")
         elif choice == '4':
-            run_script("manualcontrol.py")
+            run_script("manualcontroll.py")
         elif choice == '5':
             run_script("droneflip.py")
         elif choice == '6':
