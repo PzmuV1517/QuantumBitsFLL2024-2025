@@ -8,7 +8,7 @@ WINDOW_TITLE = "Drone Camera Feed"
 
 # Load YOLO model
 print('Loading YOLO model...')
-model = YOLO('best.pt')  # replace with your model path
+model = YOLO('logoColor.pt')  # replace with your model path
 
 # Function to convert OpenCV frame to Pygame surface
 def frame_to_surface(frame):
