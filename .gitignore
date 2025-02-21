@@ -1,3 +1,6 @@
 Project/waypoint.json
 Project/groupphoto.png
 trainingdata/
+Project/__pycache__/
+Project/cvlib/
+Project/env/
