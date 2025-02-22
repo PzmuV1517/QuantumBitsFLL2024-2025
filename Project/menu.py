@@ -39,7 +39,7 @@ def main():
         print("7. battery.py")
         print("0. Exit")
 
-        choice = input("Enter your choice (1-5): ")
+        choice = input("Enter your choice (1-7): ")
 
         if choice == '1':
             run_script("dronetest.py")
