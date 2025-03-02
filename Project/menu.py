@@ -16,6 +16,9 @@ def show_ascii_art():
     ░▒▓██▓▒░                                                                                                                                   
                                                         
 Artificial Intelligence Drone for Rescue and Ocean Needs
+
+
+
     """
     print(art)
 
