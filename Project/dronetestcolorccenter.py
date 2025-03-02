@@ -6,10 +6,10 @@ import time
 import numpy as np
 
 WINDOW_TITLE = "Drone Camera Feed"
-FORWARD_SPEED = 20  # Speed setting (10-100)
+FORWARD_SPEED = 15  # Speed setting (10-100)
 CENTER_THRESHOLD = 30  # Pixel threshold for considering drone centered (adjust as needed)
-FRAME_WIDTH = 960
-FRAME_HEIGHT = 720
+FRAME_WIDTH = 640
+FRAME_HEIGHT = 480
 MAX_CENTERING_ATTEMPTS = 5  # Maximum number of centering attempts
 
 # Load YOLO model
@@ -47,6 +47,9 @@ def main():
     drone = Tello()
     drone.connect()
 
+    # Battery Percentage
+    print(f"Battery: {drone.get_battery()}%")
+
     # Start the video stream
     drone.streamon()
 
@@ -69,7 +72,7 @@ def main():
     # Initialize variables for logo detection buffer
     logo_detected_frames = 0
     logo_positions = []
-    frame_center = (FRAME_WIDTH // 2, FRAME_HEIGHT // 2)
+    frame_center = (FRAME_WIDTH // 2 - 10, FRAME_HEIGHT - 40)
     is_centering = False
 
     try:
@@ -90,15 +93,14 @@ def main():
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     class_id = int(box.cls[0])
                     class_name = model.names[class_id]
-                    if class_name == 'QuantumBits' and confidence > 0.8:
+                    if class_name == 'QuantumBits' and confidence > 0.7:
                         logo_detected = True
                         # Calculate the center of the logo
                         logo_center = ((x1 + x2) // 2, (y1 + y2) // 2)
                         # Draw center point of logo
                         cv2.circle(frame, logo_center, 5, (0, 0, 255), -1)
                         # Draw confidence score on frame
-                        cv2.putText(frame, f"Conf: {confidence:.2f}", (x1, y1-10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                        cv2.putText(frame, f"C: {confidence:.3f}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
             # Draw the frame center for reference
             cv2.circle(frame, frame_center, 5, (255, 0, 0), -1)
@@ -132,7 +134,7 @@ def main():
                     else:
                         # Move to center over the logo
                         print(f"Centering: LR {left_right}, FB {forward_backward}")
-                        drone.send_rc_control(left_right, forward_backward, 0, 0)
+                        drone.send_rc_control(-left_right, -forward_backward, 0, 0)
                         time.sleep(0.5)
                         drone.send_rc_control(0, 0, 0, 0)  # Stop briefly to stabilize
                         time.sleep(0.5)
