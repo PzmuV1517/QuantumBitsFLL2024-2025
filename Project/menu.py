@@ -34,7 +34,7 @@ def main():
         show_ascii_art()
         print("Select a script to run:")
         print("1. dronetest.py")
-        print("2. dronetestcolor.py")
+        print("2. dronetestcolorccenter.py")
         print("3. aitest.py")
         print("4. manualcontroll.py")
         print("5. droneflip.py")
@@ -47,7 +47,7 @@ def main():
         if choice == '1':
             run_script("dronetest.py")
         elif choice == '2':
-            run_script("dronetestcolor.py")
+            run_script("dronetestcolorccenter.py")
         elif choice == '3':
             run_script("aitest.py")
         elif choice == '4':
