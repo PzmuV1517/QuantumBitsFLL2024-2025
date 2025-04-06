@@ -14,7 +14,7 @@ frame_read = tello.get_frame_read()
 # Takeoff
 tello.takeoff()
 time.sleep(2)  # Give the drone some time to stabilize
-tello.move_up(30)
+tello.move_up(60)
 time.sleep(2) # Give the drone some time to stabilize
 tello.flip_back()
 time.sleep(1)

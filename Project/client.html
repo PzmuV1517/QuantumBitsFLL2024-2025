@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Drowning Detection System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --alert-color: #e74c3c;
+            --background-color: #ecf0f1;
+            --text-color: #2c3e50;
+            --card-background: #ffffff;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 500;
+        }
+        
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem 1rem;
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            width: 100%;
+            max-width: 900px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #2ecc71;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        .status-text {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        
+        .video-container {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 0.75rem;
+            width: 100%;
+            max-width: 900px;
+            position: relative;
+            margin-bottom: 1rem;
+        }
+        
+        .video-feed {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+            display: block;
+        }
+        
+        .alert-panel {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 900px;
+            overflow: hidden;
+        }
+        
+        .alert-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.8rem 1rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+        
+        .alert-icon {
+            margin-right: 8px;
+            font-size: 1.2rem;
+        }
+        
+        .alert-content {
+            padding: 1rem;
+            min-height: 80px;
+        }
+        
+        .alert-message {
+            background-color: var(--alert-color);
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .alert-message.active {
+            display: block;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .detection-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .detection-item {
+            background-color: rgba(52, 152, 219, 0.1);
+            padding: 0.8rem;
+            border-radius: 4px;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .coordinates {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .coordinate {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .no-detection {
+            color: #7f8c8d;
+            font-style: italic;
+            text-align: center;
+            padding: 0.5rem;
+        }
+        
+        footer {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 0.8rem;
+            font-size: 0.8rem;
+            margin-top: auto;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+        
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            main {
+                padding: 1rem 0.75rem;
+            }
+            
+            h1 {
+                font-size: 1.4rem;
+            }
+            
+            .video-container {
+                padding: 0.5rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            .alert-content {
+                padding: 0.75rem;
+                min-height: 70px;
+            }
+            
+            .alert-message {
+                padding: 0.75rem;
+                font-size: 0.95rem;
+            }
+            
+            .detection-item {
+                padding: 0.6rem;
+                font-size: 0.9rem;
+            }
+        }
+        
+        /* Small phones */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.2rem;
+            }
+            
+            .status-indicator {
+                margin-bottom: 0.75rem;
+            }
+            
+            .status-text {
+                font-size: 0.8rem;
+            }
+            
+            .alert-header {
+                padding: 0.6rem 0.75rem;
+                font-size: 0.9rem;
+            }
+            
+            .alert-content {
+                padding: 0.6rem;
+                min-height: 60px;
+            }
+            
+            .coordinate {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.8rem;
+                min-height: 32px;
+            }
+            
+            footer {
+                font-size: 0.7rem;
+                padding: 0.6rem;
+            }
+        }
+        
+        /* Handle landscape orientation */
+        @media (max-height: 500px) and (orientation: landscape) {
+            main {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: flex-start;
+                padding: 0.5rem;
+            }
+            
+            .status-indicator {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            
+            .video-container {
+                width: 60%;
+                margin-right: 1%;
+                margin-bottom: 0.5rem;
+            }
+            
+            .alert-panel {
+                width: 39%;
+                max-height: calc(100vh - 120px);
+                overflow-y: auto;
+            }
+            
+            footer {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Drowning Detection System</h1>
+    </header>
+    
+    <main>
+        <div class="status-indicator">
+            <div class="status-dot"></div>
+            <div class="status-text">System Active - Monitoring Pool</div>
+        </div>
+        
+        <div class="video-container">
+            <img id="videoStream" class="video-feed" src="" alt="Video stream">
+        </div>
+        
+        <div class="alert-panel">
+            <div class="alert-header">
+                <span class="alert-icon">📊</span>
+                Detection Status
+            </div>
+            <div class="alert-content">
+                <div id="alertMessage" class="alert-message">
+                    ⚠️ DROWNING DETECTED - IMMEDIATE ACTION REQUIRED
+                </div>
+                <div id="detectionInfo" class="detection-info">
+                    <div class="no-detection">No drowning incidents detected.</div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        &copy; 2025 Quantum Bits FLL - Drowning Detection System
+    </footer>
+    
+    <script>
+        const ws = new WebSocket('ws://localhost:8765');
+        const videoStream = document.getElementById('videoStream');
+        const alertMessage = document.getElementById('alertMessage');
+        const detectionInfo = document.getElementById('detectionInfo');
+        const statusDot = document.querySelector('.status-dot');
+        
+        ws.onopen = function() {
+            statusDot.style.backgroundColor = '#2ecc71'; // Green - connected
+        };
+        
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            // Update image
+            if (data.image) {
+                videoStream.src = 'data:image/jpeg;base64,' + data.image;
+            }
+            
+            // Handle drowning detection
+            if (data.drowning_detected && data.drowning_boxes.length > 0) {
+                // Show alert message
+                alertMessage.classList.add('active');
+                
+                // Create detection items
+                let detectionHTML = '';
+                
+                data.drowning_boxes.forEach((box, index) => {
+                    detectionHTML += `
+                        <div class="detection-item">
+                            <div>Drowning Person #${index + 1} Detected</div>
+                            <div class="coordinates">
+                                <span class="coordinate">X: ${box.center_x}</span>
+                                <span class="coordinate">Y: ${box.center_y}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                detectionInfo.innerHTML = detectionHTML;
+                
+                // Add vibration for mobile if supported
+                if ("vibrate" in navigator) {
+                    navigator.vibrate([300, 100, 300]);
+                }
+            } else {
+                // Hide alert message
+                alertMessage.classList.remove('active');
+                
+                // Show no detection message
+                detectionInfo.innerHTML = '<div class="no-detection">No drowning incidents detected.</div>';
+            }
+        };
+        
+        ws.onclose = function() {
+            statusDot.style.backgroundColor = '#e74c3c'; // Red - disconnected
+            document.querySelector('.status-text').textContent = 'System Disconnected';
+            detectionInfo.innerHTML = '<div class="no-detection">Connection lost. Please refresh the page.</div>';
+        };
+        
+        // Add screen orientation change handler for mobile
+        window.addEventListener('orientationchange', function() {
+            // Small delay to allow the browser to complete the orientation change
+            setTimeout(function() {
+                // Adjust UI based on new orientation
+                if (window.matchMedia("(orientation: landscape)").matches) {
+                    document.body.classList.add('landscape');
+                } else {
+                    document.body.classList.remove('landscape');
+                }
+            }, 100);
+        });
+        
+        // Initialize orientation state
+        if (window.matchMedia("(orientation: landscape)").matches) {
+            document.body.classList.add('landscape');
+        }
+    </script>
+</body>
+</html>

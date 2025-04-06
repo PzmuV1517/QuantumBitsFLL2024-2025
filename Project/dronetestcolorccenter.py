@@ -111,7 +111,7 @@ def main():
     print("Taking off...")
     drone.takeoff()
     time.sleep(2)
-    drone.move_up(30)
+    ##drone.move_up(15)
     time.sleep(2)
 
     # Set forward speed
