@@ -4,3 +4,4 @@ trainingdata/
 Project/__pycache__/
 Project/cvlib/
 Project/env/
+.venv
