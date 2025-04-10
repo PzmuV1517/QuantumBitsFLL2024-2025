@@ -5,12 +5,26 @@ import websockets
 import base64
 import json
 import numpy as np
+import socket
 
 # Load a pretrained YOLO model
 model = YOLO("drowning.pt")
 
 # Define path to video file
 source = "video1.mp4"
+
+# Get local IP address
+def get_local_ip():
+    try:
+        # Create a socket to connect to an external server
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Doesn't actually connect but gets local routing info
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception:
+        return "127.0.0.1"  # Default to localhost if cannot determine
 
 # Process frame for websocket transmission
 async def process_frame(frame):
@@ -72,9 +86,17 @@ async def handle_client(websocket):
         print(f"Client disconnected: {websocket.remote_address}")
 
 async def main():
+    # Get the local IP address
+    local_ip = get_local_ip()
+    port = 8765
+    
     # Start websocket server
-    server = await websockets.serve(handle_client, "0.0.0.0", 8765)
-    print("WebSocket server running at ws://0.0.0.0:8765")
+    server = await websockets.serve(handle_client, "0.0.0.0", port)
+    
+    print(f"WebSocket server running at:")
+    print(f"  • Local:   ws://localhost:{port}")
+    print(f"  • Network: ws://{local_ip}:{port}")
+    print("\nShare the Network URL with devices on your local network.")
     
     # Keep server running
     await server.wait_closed()
