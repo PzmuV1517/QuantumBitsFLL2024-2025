@@ -37,4 +37,4 @@ torch
 typing-extensions
 urllib3
 ultralytics
-websocket-client
+websockets
