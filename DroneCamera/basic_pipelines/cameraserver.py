@@ -160,7 +160,7 @@ async def handle_client(websocket):
     # Assumes DroneCamera/ is one level up and contains resources/
     # If using your custom 'logov8s.hef', ensure it's placed correctly or update path.
     # Using standard 'yolov8s.hef' from DroneCamera/resources/ as an example:
-    hef_file_path = os.path.join(script_dir, '..', 'DroneCamera', 'basic_pipelines', 'yolov8s.hef')
+    hef_file_path = os.path.join(script_dir, '..', 'DroneCamera', 'basic_pipelines', 'logov8s.hef')
     # hef_file_path = os.path.join(script_dir, 'logov8s.hef') # Original path for custom model
 
     # Let GStreamer find the .so file using environment variables (TAPPAS_POST_PROC_DIR)
