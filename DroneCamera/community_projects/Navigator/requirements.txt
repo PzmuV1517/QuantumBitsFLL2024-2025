@@ -1,4 +1,0 @@
-torch 
-opencv-python 
-onnxruntime 
-tqdm

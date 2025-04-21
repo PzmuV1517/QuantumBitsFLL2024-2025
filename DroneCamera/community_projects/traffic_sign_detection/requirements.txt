@@ -1,3 +1,0 @@
-asyncio
-pynmea2
-serial
