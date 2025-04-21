@@ -40,7 +40,7 @@ def on_new_sample(appsink, user_data):
     """Callback function for the appsink's 'new-sample' signal"""
     websocket = user_data['websocket']
     loop = user_data['loop']
-    pipeline_config = user_data['pipeline_config']
+    pipeline_config = user_data['pipeline_config'] # Keep config for potential future use (e.g., drawing)
 
     sample = appsink.pull_sample()
     if sample is None:
@@ -66,28 +66,27 @@ def on_new_sample(appsink, user_data):
     success, map_info = buffer.map(Gst.MapFlags.READ)
     if not success:
         print("Error: Failed to map buffer")
-        # Consider returning FlowReturn.ERROR, but OK might prevent pipeline stall
         return Gst.FlowReturn.OK
 
     try:
         # Create numpy array from buffer data (assuming RGB format from pipeline)
-        # Make a copy because the buffer will be unmapped
         frame = np.ndarray((height, width, 3), buffer=map_info.data, dtype=np.uint8).copy()
 
-        # Process Hailo Detections
-        logo_detected = False
-        logo_boxes = []
+        # --- Modified Detection Logic ---
+        logo_detected = False # Rename this variable if desired (e.g., 'object_detected')
+        logo_boxes = [] # Rename this variable if desired (e.g., 'detection_boxes')
+
         roi = hailo.get_roi_from_buffer(buffer) # Get Hailo ROI object
         detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
-        for detection in detections:
-            label = detection.get_label()
-            # *** IMPORTANT: Replace 'person' with the actual label from your HEF model if not using standard yolov8s ***
-            # Convert label to lower case for case-insensitive comparison
-            # if label and label.lower() == pipeline_config['target_label']: # Original 'logo' check
-            if label and label.lower() == 'person': # Example using 'person' for standard yolov8s.hef
-                logo_detected = True # Keep variable name for compatibility, or rename if preferred
-                bbox = detection.get_bbox() # Get bounding box (normalized coordinates)
+        # Check if there are any detections
+        if len(detections) > 0:
+            logo_detected = True # Set flag if any object is detected
+
+            # Iterate through all detections to get their bounding boxes
+            for detection in detections:
+                label = detection.get_label() # Still get label if needed (e.g., for drawing)
+                bbox = detection.get_bbox()
                 confidence = detection.get_confidence()
 
                 # Convert normalized coordinates to pixel coordinates
@@ -100,13 +99,15 @@ def on_new_sample(appsink, user_data):
                     "x1": x1, "y1": y1, "x2": x2, "y2": y2,
                     "center_x": int((x1 + x2) / 2),
                     "center_y": int((y1 + y2) / 2),
-                    "confidence": float(confidence) # Include confidence
+                    "confidence": float(confidence),
+                    "label": label # Optionally include the label in the box info
                 })
 
                 # Optional: Draw bounding box and label on the frame for visualization
                 # cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 # cv2.putText(frame, f"{label} {confidence:.2f}", (x1, y1 - 10),
                 #             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        # --- End of Modified Detection Logic ---
 
     finally:
         # Ensure buffer is unmapped
@@ -120,11 +121,11 @@ def on_new_sample(appsink, user_data):
 
             # Prepare message payload
             # Using original keys 'drowning_detected'/'drowning_boxes' for compatibility
-            # Consider changing keys if client expects 'logo_detected'/'logo_boxes'
+            # Consider renaming keys if client is updated
             message = {
                 "image": encoded_frame,
-                "drowning_detected": logo_detected, # Variable name kept for compatibility
-                "drowning_boxes": logo_boxes      # Variable name kept for compatibility
+                "drowning_detected": logo_detected, # Flag indicates if *any* object was detected
+                "drowning_boxes": logo_boxes      # List contains boxes for *all* detected objects
             }
 
             # Send message over websocket
@@ -152,29 +153,14 @@ async def handle_client(websocket):
     loop = asyncio.get_event_loop() # Get the current asyncio event loop
 
     # --- Configuration ---
-    # Get the directory where the script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # *** IMPORTANT: Update these paths if the files are located elsewhere ***
-    # Construct paths relative to the script directory (Project/)
-    # Assumes DroneCamera/ is one level up and contains resources/
-    # If using your custom 'logov8s.hef', ensure it's placed correctly or update path.
-    # Using standard 'yolov8s.hef' from DroneCamera/resources/ as an example:
     hef_file_path = os.path.join(script_dir, 'logov8s.hef')
-    # hef_file_path = os.path.join(script_dir, 'logov8s.hef') # Original path for custom model
-
-    # Let GStreamer find the .so file using environment variables (TAPPAS_POST_PROC_DIR)
-    # set by setup_env.sh or standard Hailo installation paths.
-    # No need to define so_file_path here if environment is set up correctly.
-    # so_file_path = os.path.join(script_dir, 'libyolov8.so') # Original path assumption
 
     pipeline_config = {
         'device': '/dev/video0', # Webcam device
         'hef_path': hef_file_path, # Use corrected path
-        # 'postprocess_so': so_file_path, # Removed explicit path
         'postprocess_so_name': 'libyolov8.so', # Provide only the name
-        # 'target_label': 'logo', # Original label for custom model
-        'target_label': 'person', # Example label for standard yolov8s. Adjust if using custom model.
+        # 'target_label': 'logo', # Removed target_label as it's not used for detection logic
         'use_hailooverlay': False # Set to True to let Hailo draw boxes
     }
 
@@ -184,7 +170,6 @@ async def handle_client(websocket):
         await websocket.close()
         return
     # SO file existence check removed - relying on GStreamer/Hailo environment path
-
 
     try:
         # Define GStreamer Pipeline String
