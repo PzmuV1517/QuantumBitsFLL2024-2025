@@ -82,10 +82,11 @@ def on_new_sample(appsink, user_data):
 
         for detection in detections:
             label = detection.get_label()
-            # *** IMPORTANT: Replace 'logo' with the actual label from your logov8s.hef model ***
+            # *** IMPORTANT: Replace 'person' with the actual label from your HEF model if not using standard yolov8s ***
             # Convert label to lower case for case-insensitive comparison
-            if label and label.lower() == pipeline_config['target_label']:
-                logo_detected = True
+            # if label and label.lower() == pipeline_config['target_label']: # Original 'logo' check
+            if label and label.lower() == 'person': # Example using 'person' for standard yolov8s.hef
+                logo_detected = True # Keep variable name for compatibility, or rename if preferred
                 bbox = detection.get_bbox() # Get bounding box (normalized coordinates)
                 confidence = detection.get_confidence()
 
@@ -122,8 +123,8 @@ def on_new_sample(appsink, user_data):
             # Consider changing keys if client expects 'logo_detected'/'logo_boxes'
             message = {
                 "image": encoded_frame,
-                "drowning_detected": logo_detected,
-                "drowning_boxes": logo_boxes
+                "drowning_detected": logo_detected, # Variable name kept for compatibility
+                "drowning_boxes": logo_boxes      # Variable name kept for compatibility
             }
 
             # Send message over websocket
@@ -155,32 +156,34 @@ async def handle_client(websocket):
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     # *** IMPORTANT: Update these paths if the files are located elsewhere ***
-    # Construct absolute paths relative to the script directory
-    hef_file_path = os.path.join(script_dir, 'logov8s.hef')
-    # You might need to adjust this path depending on where libyolov8.so is located.
-    # It could be in the script dir, a sub-dir, or a system/Hailo SDK path.
-    # Example if it's in the same directory:
-    so_file_path = os.path.join(script_dir, 'libyolov8.so')
-    # Example if it's in a standard Hailo location (adjust as needed):
-    # so_file_path = '/usr/lib/hailo-postprocesses/libyolov8.so'
+    # Construct paths relative to the script directory (Project/)
+    # Assumes DroneCamera/ is one level up and contains resources/
+    # If using your custom 'logov8s.hef', ensure it's placed correctly or update path.
+    # Using standard 'yolov8s.hef' from DroneCamera/resources/ as an example:
+    hef_file_path = os.path.join(script_dir, '..', 'DroneCamera', 'resources', 'yolov8s.hef')
+    # hef_file_path = os.path.join(script_dir, 'logov8s.hef') # Original path for custom model
+
+    # Let GStreamer find the .so file using environment variables (TAPPAS_POST_PROC_DIR)
+    # set by setup_env.sh or standard Hailo installation paths.
+    # No need to define so_file_path here if environment is set up correctly.
+    # so_file_path = os.path.join(script_dir, 'libyolov8.so') # Original path assumption
 
     pipeline_config = {
         'device': '/dev/video0', # Webcam device
-        'hef_path': hef_file_path, # Use absolute path
-        'postprocess_so': so_file_path, # Use absolute path
-        'target_label': 'logo', # Label to detect (case-insensitive check)
+        'hef_path': hef_file_path, # Use corrected path
+        # 'postprocess_so': so_file_path, # Removed explicit path
+        'postprocess_so_name': 'libyolov8.so', # Provide only the name
+        # 'target_label': 'logo', # Original label for custom model
+        'target_label': 'person', # Example label for standard yolov8s. Adjust if using custom model.
         'use_hailooverlay': False # Set to True to let Hailo draw boxes
     }
 
-    # Check if files exist before creating pipeline
+    # Check if HEF file exists before creating pipeline
     if not os.path.exists(pipeline_config['hef_path']):
         print(f"Error: HEF file not found at {pipeline_config['hef_path']}")
         await websocket.close()
         return
-    if not os.path.exists(pipeline_config['postprocess_so']):
-        print(f"Error: SO file not found at {pipeline_config['postprocess_so']}")
-        await websocket.close()
-        return
+    # SO file existence check removed - relying on GStreamer/Hailo environment path
 
 
     try:
@@ -196,8 +199,9 @@ async def handle_client(websocket):
             # Hailo inference element using the specified HEF
             f"! hailonet hef-path=\"{pipeline_config['hef_path']}\"", # Quote path
             "! queue",
-            # Hailo post-processing filter using the specified .so library
-            f"! hailofilter so-path=\"{pipeline_config['postprocess_so']}\" qos=false", # Quote path
+            # Hailo post-processing filter using the specified .so library name
+            # GStreamer should find it via TAPPAS_POST_PROC_DIR or standard paths
+            f"! hailofilter so-path=\"{pipeline_config['postprocess_so_name']}\" qos=false",
         ]
         # Optional: Add hailooverlay for automatic drawing
         if pipeline_config['use_hailooverlay']:
