@@ -12,6 +12,7 @@ import base64
 import json
 import numpy as np
 import socket
+import os # <-- Add import os
 
 # Get local IP address
 def get_local_ip():
@@ -149,16 +150,38 @@ async def handle_client(websocket):
     pipeline = None
     loop = asyncio.get_event_loop() # Get the current asyncio event loop
 
-    # Configuration
+    # --- Configuration ---
+    # Get the directory where the script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # *** IMPORTANT: Update these paths if the files are located elsewhere ***
+    # Construct absolute paths relative to the script directory
+    hef_file_path = os.path.join(script_dir, 'logov8s.hef')
+    # You might need to adjust this path depending on where libyolov8.so is located.
+    # It could be in the script dir, a sub-dir, or a system/Hailo SDK path.
+    # Example if it's in the same directory:
+    so_file_path = os.path.join(script_dir, 'libyolov8.so')
+    # Example if it's in a standard Hailo location (adjust as needed):
+    # so_file_path = '/usr/lib/hailo-postprocesses/libyolov8.so'
+
     pipeline_config = {
         'device': '/dev/video0', # Webcam device
-        'hef_path': 'logov8s.hef', # Path to Hailo Executable Format file
-        # *** IMPORTANT: Set the correct post-processing .so for your HEF ***
-        'postprocess_so': 'libyolov8.so',
-        # *** IMPORTANT: Set the correct label name for the logo in your HEF ***
+        'hef_path': hef_file_path, # Use absolute path
+        'postprocess_so': so_file_path, # Use absolute path
         'target_label': 'logo', # Label to detect (case-insensitive check)
         'use_hailooverlay': False # Set to True to let Hailo draw boxes
     }
+
+    # Check if files exist before creating pipeline
+    if not os.path.exists(pipeline_config['hef_path']):
+        print(f"Error: HEF file not found at {pipeline_config['hef_path']}")
+        await websocket.close()
+        return
+    if not os.path.exists(pipeline_config['postprocess_so']):
+        print(f"Error: SO file not found at {pipeline_config['postprocess_so']}")
+        await websocket.close()
+        return
+
 
     try:
         # Define GStreamer Pipeline String
@@ -171,10 +194,10 @@ async def handle_client(websocket):
             # Use queue for buffering between elements/threads
             "! queue",
             # Hailo inference element using the specified HEF
-            f"! hailonet hef-path={pipeline_config['hef_path']}",
+            f"! hailonet hef-path=\"{pipeline_config['hef_path']}\"", # Quote path
             "! queue",
             # Hailo post-processing filter using the specified .so library
-            f"! hailofilter so-path={pipeline_config['postprocess_so']} qos=false",
+            f"! hailofilter so-path=\"{pipeline_config['postprocess_so']}\" qos=false", # Quote path
         ]
         # Optional: Add hailooverlay for automatic drawing
         if pipeline_config['use_hailooverlay']:
